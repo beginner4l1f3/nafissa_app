@@ -86,14 +86,10 @@ const CATEGORY_MAPPING: Record<string, keyof typeof EMISSION_DATA> = {
 
 /* ======================= Helpers ======================= */
 
-// Emissões mínimas mesmo sem fazer escolhas (vida básica)
-const calculateBaseEmissions = () => {
-  return 2000; // ~2 toneladas/ano como mínimo
-};
+const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(max, n));
 
 const calculateTotalEmissions = (selections: Record<string, string>) => {
   let total = 0;
-  let hasSelection = false;
   
   Object.keys(selections).forEach(categoryKey => {
     const selection = selections[categoryKey];
@@ -101,17 +97,14 @@ const calculateTotalEmissions = (selections: Record<string, string>) => {
     
     if (selection && emissionCategory && EMISSION_DATA[emissionCategory] && EMISSION_DATA[emissionCategory][selection]) {
       total += EMISSION_DATA[emissionCategory][selection].ano;
-      hasSelection = true;
     }
   });
   
-  // Retornar pelo menos um valor base se nenhuma seleção foi feita
-  return hasSelection ? total : calculateBaseEmissions();
+  return total;
 };
 
 const calculateCumulative2100 = (selections: Record<string, string>) => {
   let total = 0;
-  let hasSelection = false;
   
   Object.keys(selections).forEach(categoryKey => {
     const selection = selections[categoryKey];
@@ -119,12 +112,10 @@ const calculateCumulative2100 = (selections: Record<string, string>) => {
     
     if (selection && emissionCategory && EMISSION_DATA[emissionCategory] && EMISSION_DATA[emissionCategory][selection]) {
       total += EMISSION_DATA[emissionCategory][selection].ate2100;
-      hasSelection = true;
     }
   });
   
-  // Retornar pelo menos um valor base se nenhuma seleção foi feita
-  return hasSelection ? total : calculateBaseEmissions() * 75; // 75 anos
+  return total;
 };
 
 // Função para calcular o aquecimento global baseado nas emissões
@@ -266,7 +257,7 @@ const STEP_UI: Record<Exclude<StepId, "results">, StepConfig> = {
   home: {
     title: "Que tipo de energia utiliza mais em casa?",
     desc:
-      "A forma como produzimos e usamos energia em casa influencia diretamente o consumo e as emissões. Energias renováveis (como solar) reduzem o impacto ambiental, enquanto fontes fósseis (como carvão and gasóleo) têm maior pegada de carbono.",
+      "A forma como produzimos e usamos energia em casa influencia diretamente o consumo e as emissões. Energias renováveis (como solar) reduzem o impacto ambiental, enquanto fontes fósseis (como carvão e gasóleo) têm maior pegada de carbono.",
     options: [
       { label: "Eletricidade da Rede", icon: "/icons/energia/electricidadedarede.png" },
       { label: "Painéis Solares", icon: "/icons/energia/painelsolar.png" },
@@ -277,7 +268,7 @@ const STEP_UI: Record<Exclude<StepId, "results">, StepConfig> = {
   food: {
     title: "Que tipo de alimentação costuma ter?",
     desc:
-      "A produção de carne and de produtos de origem animal emite metano and dióxido de carbono. Dietas com menos carne and mais alimentos de origem vegetal produzem menos emissões.",
+      "A produção de carne e de produtos de origem animal emite metano e dióxido de carbono. Dietas com menos carne e mais alimentos de origem vegetal produzem menos emissões.",
     options: [
       { label: "Dieta com muita carne", icon: "/icons/alimentacao/muitacarne.png" },
       { label: "Dieta com alguma carne", icon: "/icons/alimentacao/dietacomcarne.png" },
@@ -288,7 +279,7 @@ const STEP_UI: Record<Exclude<StepId, "results">, StepConfig> = {
   shopping: {
     title: "Onde costuma fazer as suas compras do dia a dia?",
     desc:
-      "As escolhas de consumo têm impacto no ambiente and na economia local. Comprar produtos locais reduz emissões associadas ao transporte; produtos importados tendem a têm maior pegada.",
+      "As escolhas de consumo têm impacto no ambiente e na economia local. Comprar produtos locais reduz emissões associadas ao transporte; produtos importados tendem a têm maior pegada.",
     options: [
       { label: "Mercado Local", icon: "/icons/compras/mercadolocal.png" },
       { label: "Supermercado", icon: "/icons/compras/supermercado.png" },
@@ -299,7 +290,7 @@ const STEP_UI: Record<Exclude<StepId, "results">, StepConfig> = {
   flights: {
     title: "Que tipo de transporte usará nas próximas férias?",
     desc:
-      "Os aviões são menos eficientes do que os carros and, quanto mais and mais longos forem os voos, maior será a energia necessária.",
+      "Os aviões são menos eficientes do que os carros e, quanto mais e mais longos forem os voos, maior será a energia necessária.",
     options: [
       { label: "Em Casa", icon: "/icons/ferias/emcasa.png" },
       { label: "Perto de Casa", icon: "/icons/ferias/pertodecasa.png" },
@@ -330,6 +321,7 @@ export default function ChooseOurFutureClone() {
   const hasChoice = !isResults && Boolean(sel[activeStep as keyof typeof sel]);
 
   // Calcular totais baseados nas seleções
+  const perCapita = useMemo(() => calculateTotalEmissions(sel), [sel]);
   const cumulative2100 = useMemo(() => calculateCumulative2100(sel), [sel]);
   const t2100 = useMemo(() => calculateWarming(cumulative2100), [cumulative2100]);
   const tempSeries = useMemo(() => makeTempSeries(cumulative2100), [cumulative2100]);
@@ -451,7 +443,7 @@ export default function ChooseOurFutureClone() {
           <>
             {/* Banner */}
             <div className="mb-4 rounded-3xl bg-gradient-to-r from-blue-600 to-cyan-500 p-6 text-white shadow">
-              <h2 className="text-2xl font-extrabold">Resultados and Reflexão Final</h2>
+              <h2 className="text-2xl font-extrabold">Resultados e Reflexão Final</h2>
               <p className="mt-1 text-sm opacity-90">Estes resultados baseiam-se nas escolhas que fizeste ao longo do módulo.</p>
             </div>
 
@@ -471,7 +463,7 @@ export default function ChooseOurFutureClone() {
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
-                <p className="mt-3 text-xs text-gray-500">Nota: visualização educativa and simplificada. Um modelo científico rigoroso poderá produzir valores diferentes.</p>
+                <p className="mt-3 text-xs text-gray-500">Nota: visualização educativa e simplificada. Um modelo científico rigoroso poderá produzir valores diferentes.</p>
               </Panel>
 
               <Panel title="Distribuição da tua pegada anual">
@@ -535,9 +527,9 @@ export default function ChooseOurFutureClone() {
               <Panel title="E agora? Ideias para melhorar">
                 <ul className="list-disc space-y-2 pl-5 text-sm text-gray-700">
                   <li>Preferir deslocações a pé, de bicicleta ou transporte partilhado.</li>
-                  <li>Reduzir o consumo de energia and, quando possível, optar por fontes renováveis.</li>
+                  <li>Reduzir o consumo de energia e, quando possível, optar por fontes renováveis.</li>
                   <li>Experimentar refeições com menos carne ao longo da semana.</li>
-                  <li>Dar prioridade a produtos locais and duráveis, evitando compras desnecessárias.</li>
+                  <li>Dar prioridade a produtos locais e duráveis, evitando compras desnecessárias.</li>
                 </ul>
               </Panel>
             </div>
@@ -555,7 +547,7 @@ export default function ChooseOurFutureClone() {
       {/* Footer fixo ao fundo */}
       <footer className="mt-auto w-full border-t bg-white/70">
         <div className="mx-auto max-w-6xl p-4 text-center text-sm text-gray-600">
-          Desenvolvido por Kukuma Tech and Museus do Mar © 2025.
+          Desenvolvido por Kukuma Tech e Museus do Mar © 2025.
         </div>
       </footer>
     </div>
